@@ -99,7 +99,7 @@ if enabled('convert-message-id'):
 
 if enabled('link-tag-to-end'):
     import re
-    patt = re.compile('^\s*Link:.*$')
+    patt = re.compile('^\s*Link: https://msgid\.link.*$')
 
     last_non_comment = 0
     links = []
