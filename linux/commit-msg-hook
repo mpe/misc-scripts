@@ -85,7 +85,7 @@ if enabled('convert-message-id'):
         match = patt.match(line)
         if match:
             found = True
-            lines[i] = '%sLink: https://lore.kernel.org/r/%s\n' % match.groups()
+            lines[i] = '%sLink: https://msgid.link/%s\n' % match.groups()
         i += 1
 
     if found:
