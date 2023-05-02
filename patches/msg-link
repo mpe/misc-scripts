@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [[ -z "$1" ]]; then
+    echo "Usage: $0 <message id>" >&2
+    exit 1
+fi
+
+id="$1"
+id="${id#id:}"	# strip off id: prefix from notmuch
+
+echo https://msgid.link/$id
