@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for path in $(cat .git/objects/info/alternates objects/info/alternates 2> /dev/null)
+do
+	repo=$(dirname $path)
+
+	(set -x; cd $repo; git fetch)
+done
+
+(set -x; git fetch)
