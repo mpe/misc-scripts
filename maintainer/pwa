@@ -1,0 +1,68 @@
+#!/usr/bin/python3
+
+import sys
+import requests
+import tempfile
+import os
+from subprocess import call, check_call
+
+session = requests.Session()
+
+arg = sys.argv[1]
+
+# See if the argument we got is a patch id (an int)
+try:
+    pid = int(arg)
+except ValueError:
+    # No, assume it's a message id
+    msgid = arg
+else:
+    # Lookup the msgid using the patch id
+    url = f'https://patchwork.ozlabs.org/api/patches/{pid}/'
+    json = session.get(url).json()
+    msgid = json['msgid']
+
+# When copying from URL bar these sometimes come along and should be removed
+msgid = msgid.rstrip('/')
+
+temp_dir = tempfile.mkdtemp()
+
+cmd = f'b4 am -s -l -t -o {temp_dir} %s {msgid}' % ' '.join(sys.argv[2:])
+print(f'Running: {cmd}')
+
+check_call(cmd.split())
+print("b4 completed OK")
+
+mbx = None
+cover = None
+for fname in os.listdir(temp_dir):
+    if fname.endswith('.mbx'):
+        mbx = fname
+    if fname.endswith('.cover'):
+        cover = fname
+
+if mbx is None:
+    print("Error: couldn't find mbox!")
+    sys.exit(1)
+
+cmd = f'git am {temp_dir}/{mbx}'
+print(f'Running: {cmd}')
+rc = call(cmd.split())
+if rc == 0:
+    print("git am completed OK")
+else:
+    print('============================================================')
+    print('git am failed, fix up manually.')
+    print("When finished 'exit 0' to continue or 'exit 1' to abort.")
+    print('============================================================')
+    rc = call('bash')
+    if rc != 0:
+        print(f"Aborting as requested, series left in {temp_dir}")
+        sys.exit(1)
+
+os.unlink(f'{temp_dir}/{mbx}')
+if cover:
+    os.unlink(f'{temp_dir}/{cover}')
+
+os.rmdir(temp_dir)
+print("OK")
