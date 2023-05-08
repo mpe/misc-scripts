@@ -1,0 +1,44 @@
+#!/bin/bash
+
+current=$(git symbolic-ref --short HEAD)
+if [[ "$current" != "merge" && "$current" != "merge-test" ]]; then
+    echo "Error: not on merge or merge-test!" >&2
+    exit 1
+fi
+
+echo "Auto merging on $current ..."
+
+git diff --quiet
+
+if [[ $? -ne 0 ]]; then
+    echo "Error: tree is not clean!" >&2
+    exit 1
+fi
+
+set -e
+
+now=$(date "+%Y-%m-%d %H:%M")
+
+if [[ "$current" == "merge" ]]; then
+    branches="master fixes next"
+    upstream="master"
+else
+    branches="master fixes-test next-test topic/ppc-kvm"
+    upstream="merge"
+    git reset --hard merge
+fi
+
+for branch in $branches
+do
+    rc=0
+    git merge --no-ff -m "Automatic merge of '$branch' into $current ($now)" $branch || rc=1
+    if [[ $rc -ne 0 ]]; then
+        echo "Automatic merge failed! Spawning bash, fixup and then exit 0 to continue."
+        bash
+
+        if [[ $? -ne 0 ]]; then
+            echo "Aborting!"
+            exit 1
+        fi
+    fi
+done
