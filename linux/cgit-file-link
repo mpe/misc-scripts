@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [[ -z $2 ]]; then
+	echo "Usage: $0 <file> <line>" >&2
+	exit 1
+fi
+
+file=$1
+line=$2
+
+head=$(git merge-base HEAD origin/master)
+
+xdg-open https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/${file}?commit=${head}#n${line}

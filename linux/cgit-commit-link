@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [[ -z $1 ]]; then
+	echo "Usage: $0 <commit> [tree]" >&2
+	exit 1
+fi
+
+if [[ ! -z $2 ]]; then
+	tree="$2"
+else
+	tree="torvalds"
+fi
+
+commit=$(git rev-parse $1)
+
+echo "https://git.kernel.org/$tree/c/$commit" | xclip -f
