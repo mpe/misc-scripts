@@ -1,0 +1,58 @@
+#!/bin/bash
+
+function log_1
+{
+	git log -1 --color --format="%C$2%h%Creset %s" --abbrev-commit "$1"
+}
+
+function do_branch
+{
+	local ref="$1"
+	local remotes="$2"
+	local local_rev
+	local local_desc
+	local printed=0
+
+	local_rev=$(git rev-parse "refs/heads/$ref")
+	local_desc=$(log_1 "$local_rev" green)
+
+	for remote in $remotes
+	do
+		if ! rev=$(git rev-parse "refs/remotes/$remote/$ref" 2>/dev/null); then
+			continue
+		fi
+
+		if [[ $printed -eq 0 ]]; then
+			printf "%7s %10s is: $local_desc\n" local "$ref"
+			printed=1
+		fi
+
+		if [[ $rev == "$local_rev" ]]; then
+			colour="green"
+		else
+			colour="red"
+		fi
+
+		desc=$(log_1 "$rev" "$colour")
+		printf "%7s %10s is: $desc\n" "$remote" "$ref"
+	done
+
+	if [[ $printed -gt 0 ]]; then
+		echo
+	fi
+}
+
+branches=$(git config --get mpe.checkremotes.branches)
+if [[ -z "$branches" ]]; then
+	branches=$(git branch --list | tr -d '*')
+fi
+
+remotes=$(git config --get mpe.checkremotes.remotes)
+if [[ -z "$remotes" ]]; then
+	remotes=$(git remote)
+fi
+
+for branch in $branches
+do
+	do_branch "$branch" "$remotes"
+done
