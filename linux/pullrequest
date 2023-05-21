@@ -216,7 +216,7 @@ def main(args):
     url = 'https://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git'
     base = 'master'
 
-    cmd = 'git tag --sort v:refname -l powerpc-*'
+    cmd = 'git tag --sort v:refname -l powerpc-[0-9]*'
     output = check_output(cmd.split())
     head = output.decode('utf-8').splitlines()[-1].strip()
 
