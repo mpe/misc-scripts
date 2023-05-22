@@ -1,0 +1,97 @@
+#!/usr/bin/python3
+#
+# Create git notes on commits recording which linux-next release they first appear in.
+
+import sys
+import requests
+from datetime import datetime, timedelta
+from subprocess import call, getstatusoutput
+
+VERSION = 'https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/localversion-next'
+SHAS =    'https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/Next/SHA1s'
+
+
+def get_url(url):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+
+    return r
+
+
+def main(args):
+    rc, output = getstatusoutput('git config --get mpe.note-linux-next.trees')
+    if rc != 0:
+        # eg.
+        # [mpe "note-linux-next"]
+        #   trees = powerpc, powerpc-fixes
+        #
+        print("Error: no trees configured, add them to .git/config")
+        return 1
+
+    trees = output.split()
+
+    if len(args):
+        do_one_day(args[0], trees)
+    else:
+        today = datetime.now()
+        for i in range(7, -1, -1):
+            day = today - timedelta(days=i)
+            do_one_day(day.strftime("%Y%m%d"), trees)
+
+
+def do_one_day(date, trees):
+    tag = f'next-{date}'
+    url = f'{SHAS}?h={tag}'
+
+    r = get_url(url)
+    if r is None:
+        print(f"No tag found for {date}")
+        return
+
+    print(f"Noting commits for {date}")
+
+    for line in r.text.splitlines():
+        tree, sha = line.split()
+
+        if tree in trees:
+            note_revision(tree, sha, tag)
+
+
+def note_revision(tree, sha, version):
+    cmd = 'git rev-parse --no-revs --verify %s^{commit}' % sha
+    rc = call(cmd.split())
+    if rc:
+        print("Error: Couldn't find commit", sha)
+        return
+
+    cmd = f'git log -1 --format=%s {sha}'
+    rc, desc = getstatusoutput(cmd)
+    if rc:
+        print("Error: Couldn't get description for sha", sha)
+        return
+
+    new_note = f'In-Linux-Next: {version}'
+
+    cmd = 'git notes --ref=linux-next show %s' % sha
+    rc, output = getstatusoutput(cmd)
+    if rc == 0:
+        s = set(output.splitlines())
+        if new_note in s:
+            return
+
+        s.add(new_note)
+        s.discard('')
+        note = '\n'.join(s)
+    else:
+        note = new_note
+
+    rc = call(['git', 'notes', '--ref=linux-next', 'add', '-f', '-m', note, sha])
+    if rc:
+        print("Error: Failed adding git note!")
+        return
+
+    print("OK adding notes to", sha[:12], desc)
+
+
+sys.exit(main(sys.argv[1:]))
