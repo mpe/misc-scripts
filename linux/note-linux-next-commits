@@ -78,6 +78,7 @@ def note_revision(tree, sha, version):
     if rc == 0:
         s = set(output.splitlines())
         if new_note in s:
+            print("Existing note found for", sha[:12], desc)
             return
 
         s.add(new_note)
