@@ -1,0 +1,294 @@
+#!/usr/bin/python3
+#
+# Show/set the patchwork state for a commit or range of commits, or a message
+# id or multiple message ids.
+#
+# Pass -m to read message ids from stdin.
+#
+# Uses the patchwork REST API, requires configuration in .git/config, eg:
+#
+# [pw]
+#     server = "https://patchwork.kernel.org/api/"
+#     project = "linuxppc-dev"
+#     username = "foo"
+#     token = "1cf734b4b3de4f3115f0d0d87a7107eee76510fb"
+
+import sys
+import re
+from requests import Session
+from urllib.parse import unquote
+from subprocess import check_output, check_call, call, CalledProcessError, DEVNULL
+
+try:
+    from termcolor import colored
+except ModuleNotFoundError:
+    def colored(s, c):
+        return s
+
+def run(cmd):
+    return check_output(cmd.split()).decode('utf-8').strip()
+
+
+def is_merge(sha):
+    return call(f'git rev-parse --verify {sha}^2'.split(), stdout=DEVNULL, stderr=DEVNULL) == 0
+
+
+def get_settings():
+    try:
+        base_url = run('git config --get pw.server')
+        project = run('git config --get pw.project')
+        token = run('git config --get pw.token')
+    except CalledProcessError:
+        print("Error: pw settings not found in .git/config!")
+        return None
+
+    return (base_url, project, token)
+
+
+def usage():
+    print("Usage: pw-state <state> ((<revision>|<revision-range> | -m)", file=sys.stderr)
+    return False
+
+
+def main(args):
+    if len(args) != 2:
+        return usage()
+
+    settings = get_settings()
+    if settings is None:
+        return False
+
+    state = args[0]
+    arg = args[1]
+
+    if arg == '-m':
+        return process_message_ids(state, settings)
+
+    if '..' in arg:
+        revision_range = arg
+    else:
+        revision_range = f'{arg}^..{arg}'
+
+    return process_commits(revision_range, state, settings)
+
+
+def process_commits(revision_range, state, settings):
+    if state != 'info':
+        print("Commits to modify:")
+        check_call(['git', 'log', "--format=%C(auto)%h %C(auto,green)%<(18,trunc)%aN %Cblue%d%Creset %s",
+                    '--abbrev-commit', revision_range])
+
+        print("Continue y/n? ", end='')
+        sys.stdout.flush()
+
+        response = sys.stdin.readline().strip()
+
+        if response != "y":
+            print("exiting")
+            return True
+
+    commits = run(f'git rev-list --reverse {revision_range}').splitlines()
+
+    link_patt = re.compile("Link: https?://msgid.link/(.*)")
+
+    session = Session()
+
+    for commit in commits:
+        subject = run('git log -1 --format=%%s %s' % commit)
+
+        if is_merge(commit):
+            print(colored("Skipping merge", 'yellow'), subject, commit)
+            continue
+
+        count = 0
+
+        for line in run('git log -1 --format=%%b %s' % commit).splitlines():
+            m = link_patt.match(line)
+            if m:
+                handle_patch(session, m.group(1), state, subject, commit, settings)
+                count += 1
+
+        if count == 0:
+            print("%s: no patchwork id for" % colored('Warning', 'red'), commit, subject)
+
+    return True
+
+
+def display_state(state):
+    color = None
+    if state == 'accepted':
+        color = 'green'
+    elif state == 'under-review':
+        color = 'yellow'
+    elif state == 'handled-elsewhere':
+        color = 'magenta'
+    else:
+        color = 'red'
+
+    return colored(state.capitalize(), color)
+
+
+def handle_patch(session, msgid, state, subject, commit, project_settings):
+    base_url, project, token = project_settings
+
+    # Patchwork expects non-URL-encoded string
+    msgid = unquote(msgid)
+
+    url = f'{base_url}/patches/'
+    params = [('msgid', msgid), ('project', project)]
+    result = session.get(url, params=params)
+
+    if result.status_code != 200:
+        print("Error %d getting state for %s:\n%s" % (result.status_code, msgid, result))
+        return
+
+    json = result.json()
+    if len(json) == 0:
+        print("Error: no patch found for %s" % (msgid, commit, subject))
+        return
+
+    patch_id = json[0].get('id')
+    if subject is None:
+        subject = json[0].get('name')
+
+    if state == 'info':
+        state = json[0].get('state')
+        print(f"{display_state(state)} {subject} ({msgid})")
+        return
+
+    url = f'{base_url}/patches/{patch_id}/'
+
+    # Some state aliases
+    if state == 'review':
+        state = 'under-review'
+    elif state == 'accept':
+        state = 'accepted'
+    elif state == 'reject':
+        state = 'rejected'
+    elif state == 'super':
+        state = 'superseded'
+    elif state == 'other':
+        state = 'handled-elsewhere'
+    elif state == 'na':
+        state = 'not-applicable'
+
+    headers = {'Authorization' : f'Token {token}'}
+    data = [('state', state)]
+    if state == 'accepted' and commit is not None:
+        data.append(('commit_ref', commit))
+
+    result = session.patch(url, headers=headers, data=data)
+    if result.status_code != 200:
+        print("Error %d setting state for %s:\n%s" % (result.status_code, msgid, result.text))
+        return
+
+    ok = colored('OK', 'green')
+    print(f"{ok} set state to {display_state(state)} for {subject} ({msgid})")
+
+
+def process_message_ids(state, settings):
+    print("Reading message ids from stdin ...", file=sys.stderr)
+    msg_ids = [s.strip() for s in sys.stdin.readlines()]
+
+    # Strip id: prefix from notmuch
+    msg_ids = [s.replace('id:', '', 1) for s in msg_ids]
+
+    base_url, project, _ = settings
+    session = Session()
+
+    sids = set()
+    sid_messages = {}
+    for msgid in msg_ids:
+        is_cover = False
+        result = lookup_patch(msgid, session, base_url)
+        if result is None:
+            is_cover = True
+            result = lookup_cover(msgid, session, base_url)
+
+        if result is None:
+            print(f"Nothing found for {msgid}")
+            continue
+
+        sid = get_series(msgid, result, project)
+        if sid:
+            msgids = series_messages(sid, session, base_url)
+        else:
+            msgids = []
+
+        msgids = set(msgids)
+        if not is_cover:
+            msgids.add(msgid)
+
+        if len(msgids) == 0:
+            print(f"No messages found for {msgid}")
+            continue
+
+        sids.add(sid)
+        sid_messages[sid] = msgids
+
+    for sid in sids:
+        for msgid in sid_messages[sid]:
+            handle_patch(session, msgid, state, subject=None, commit=None, project_settings=settings)
+
+    return True
+
+
+def series_messages(sid, session, base_url):
+    url = f'{base_url}/series/{sid}/'
+    result = session.get(url)
+    if result.status_code != 200:
+        print(f"Error {result.status_code} looking up series {sid}:\n{result}")
+        return []
+
+    json = result.json()
+    ids = []
+    for p in json['patches']:
+        pid = p['msgid']
+        # patchwork returns <..>  bracketed ids, but doesn't accept them
+        pid = pid.replace('<', '', 1)
+        pid = pid.rsplit('>', 1)[0]
+        ids.append(pid)
+
+    return ids
+
+
+def lookup_message(msgid, obj_type, session, base_url):
+    url = f'{base_url}/{obj_type}/?msgid={msgid}'
+    result = session.get(url)
+    if result.status_code == 404:
+        return None
+
+    if result.status_code != 200:
+        print(f"Error {result.status_code} looking up {msgid}:\n{result}")
+        return None
+
+    json = result.json()
+    if type(json) is not list or len(json) == 0:
+        return None
+
+    return result
+
+
+def lookup_cover(msgid, session, base_url):
+    return lookup_message(msgid, 'covers', session, base_url)
+
+
+def lookup_patch(msgid, session, base_url):
+    return lookup_message(msgid, 'patches', session, base_url)
+
+
+def get_series(msgid, result, project):
+    json = result.json()
+    if type(json) is not list or len(json) == 0:
+        print(f"No data found for message: {msgid}")
+        return None
+
+    for d in json:
+        if d['project']['link_name'] == project:
+            sid = d['series'][0]['id']
+            print(f'Found message {msgid} with series {sid}')
+            return sid
+
+    return None
+
+sys.exit(0 if main(sys.argv[1:]) else 1)
