@@ -144,7 +144,7 @@ def handle_patch(session, msgid, state, subject, commit, project_settings):
 
     json = result.json()
     if len(json) == 0:
-        print("Error: no patch found for %s" % (msgid, commit, subject))
+        print(f"Error: no patch found for {msgid}, {commit}, {subject}")
         return
 
     patch_id = json[0].get('id')
