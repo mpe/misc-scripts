@@ -27,7 +27,7 @@ def main(args):
 
     print("Latest tag is", latest)
 
-    pattern = re.compile('^%s-([0-9]+)\.([0-9]+)-([0-9]+)$' % tag_base)
+    pattern = re.compile(r'^%s-([0-9]+)\.([0-9]+)-([0-9]+)$' % tag_base)
     m = pattern.match(latest)
     if not m:
         print("Error: couldn't match pattern for tag?!", file=sys.stderr)
@@ -109,10 +109,10 @@ def create_tag_txt(headline, base_ref):
     user_name = run('git config --get user.name')
 
     other_patterns = [
-        re.compile("^Signed-off-by:\s*([^<]+).*$"),
-        re.compile("^Tested-by:\s*([^<]+).*$"),
-        re.compile("^Reviewed-by:\s*([^<]+).*$"),
-        re.compile("^Reported-by:\s*([^<]+).*$"),
+        re.compile(r"^Signed-off-by:\s*([^<]+).*$"),
+        re.compile(r"^Tested-by:\s*([^<]+).*$"),
+        re.compile(r"^Reviewed-by:\s*([^<]+).*$"),
+        re.compile(r"^Reported-by:\s*([^<]+).*$"),
     ]
     other_headers = [ 'other-sobs', 'testers', 'reviewers', 'reporters' ]
     others = [ set(), set(), set(), set() ]
