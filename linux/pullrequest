@@ -58,7 +58,7 @@ def get_addrs(base, head):
 
     # Ackers
     cmd = 'git log --pretty=format:%%b %s..%s' % (base, head)
-    pattern = re.compile('^Acked-by:[^<]*<([^>]+)>.*')
+    pattern = re.compile(r'^Acked-by:[^<]*<([^>]+)>.*')
     for line in check_output(cmd.split()).splitlines():
         m = pattern.match(line.decode('utf-8'))
         if m:
@@ -222,7 +222,7 @@ def main(args):
     url = 'https://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git'
     base = 'master'
 
-    pattern = re.compile('^powerpc-([0-9]+\.[0-9]+)-([0-9]+)$')
+    pattern = re.compile(r'^powerpc-([0-9]+\.[0-9]+)-([0-9]+)$')
     tag_match = pattern.match(head)
     if not tag_match:
         print("Error: couldn't match pattern for tag?!", file=sys.stderr)
