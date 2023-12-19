@@ -138,7 +138,7 @@ def create_tag_txt(headline, base_ref):
     l = list(authors)
     l.sort()
     f.write('\nThanks to:\n')
-    f.write(',\n'.join(l) + '\n\n')
+    f.write(',\n'.join(l) + ',\n\n')
 
     done = authors
     for s, header in zip(others, other_headers):
@@ -147,7 +147,7 @@ def create_tag_txt(headline, base_ref):
         l = list(diff)
         l.sort()
         f.write('And thanks to (%s):\n' % header)
-        f.write(',\n'.join(l) + '\n\n')
+        f.write(',\n'.join(l) + ',\n\n')
 
     f.close()
 
