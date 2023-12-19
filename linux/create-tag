@@ -119,7 +119,7 @@ def create_tag_txt(headline, base_ref):
     authors = set()
     for commit in commits:
         def add_contributer(s, c):
-            c = c.strip()
+            c = c.strip().strip('"')
             if c != user_name: # Don't thank ourself
                 s.add(c)
 
