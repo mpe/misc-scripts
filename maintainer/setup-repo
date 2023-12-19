@@ -1,0 +1,135 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+if [[ "${1-}" == "-v" ]]; then
+        set -o xtrace
+	shift
+fi
+
+function banner
+{
+        echo "========================================"
+        echo " $1"
+        echo "========================================"
+}
+
+if ! git remote | grep -w korg > /dev/null; then
+    banner "Setting up korg remote"
+    git remote add korg https://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git
+    git remote set-url --push korg git@gitolite.kernel.org:pub/scm/linux/kernel/git/powerpc/linux
+    git fetch korg
+    git config --add remote.korg.push "refs/heads/master:refs/heads/master"
+    git config --add remote.korg.push "refs/heads/merge:refs/heads/merge"
+    git config --add remote.korg.push "refs/heads/next:refs/heads/next"
+    git config --add remote.korg.push "refs/heads/next-test:refs/heads/next-test"
+    git config --add remote.korg.push "refs/heads/fixes:refs/heads/fixes"
+    git config --add remote.korg.push "refs/heads/fixes-test:refs/heads/fixes-test"
+    git config --add remote.korg.push "refs/tags/powerpc*"
+    git config --add remote.korg.push "refs/tags/v*"
+fi
+
+if ! git remote | grep -w github > /dev/null; then
+    banner "Setting up github remote"
+    git remote add github https://github.com/linuxppc/linux.git
+    git remote set-url --push github git@github.com:linuxppc/linux.git
+    git fetch github
+    git config --add remote.github.push "refs/heads/master:refs/heads/master"
+    git config --add remote.github.push "refs/heads/merge:refs/heads/merge"
+    git config --add remote.github.push "refs/heads/next:refs/heads/next"
+    git config --add remote.github.push "refs/heads/next-test:refs/heads/next-test"
+    git config --add remote.github.push "refs/heads/fixes:refs/heads/fixes"
+    git config --add remote.github.push "refs/heads/fixes-test:refs/heads/fixes-test"
+    git config --add remote.github.push "refs/tags/powerpc*"
+    git config --add remote.github.push "refs/tags/v*"
+fi
+
+if ! git remote | grep -w gh-ci > /dev/null; then
+    banner "Setting up gh-ci remote"
+    git remote add gh-ci https://github.com/linuxppc/linux-ci.git
+    git remote set-url --push gh-ci git@github.com:linuxppc/linux-ci.git
+    git fetch gh-ci
+    git config --add remote.github.push "refs/heads/merge:refs/heads/merge"
+    git config --add remote.github.push "refs/heads/next-test:refs/heads/next-test"
+    git config --add remote.github.push "refs/heads/fixes-test:refs/heads/fixes-test"
+    git config --add remote.github.push "refs/tags/powerpc*"
+    git config --add remote.github.push "refs/tags/v*"
+fi
+
+banner "Setting up branches"
+
+for branch in next next-base next-test fixes fixes-base fixes-test
+do
+    if ! git rev-parse --verify $branch > /dev/null 2>&1; then
+        echo "Creating $branch"
+
+	if [[ $branch == *-base ]]; then
+		git branch $branch korg/master
+	else
+		git branch $branch korg/$branch
+	fi
+    fi
+done
+
+# fixes-test's upstream is fixes
+git branch --set-upstream-to=fixes fixes-test
+
+# fixes' upstream is korg/fixes
+git branch --set-upstream-to=korg/fixes fixes
+
+# next-test's upstream is next
+git branch --set-upstream-to=next next-test
+
+# next's upstream is korg/next
+git branch --set-upstream-to=korg/next next
+
+banner "Setting up b4"
+git config --replace-all b4.linkmask "https://msgid.link/%s"
+git config --replace-all b4.thanks-commit-url-mask "https://git.kernel.org/powerpc/c/%.40s"
+git config --replace-all b4.trailer-order "fixes*,cc*,reported*,suggested*,original*,co-*,signed-off*,tested*,reviewed*,acked*,link*,*"
+git config --replace-all b4.thanks-from-email "patch-notifications@ellerman.id.au"
+git config --replace-all b4.thanks-treename "powerpc"
+
+cat > .git/b4.thanks <<EOF
+On \${sentdate}, \${fromname} wrote:
+\${quote}
+
+Applied to \${treename}/\${branch}.
+
+\${summary}
+
+cheers
+EOF
+
+git config --replace-all b4.thanks-am-template .git/b4.thanks
+
+banner "Setting up tag script configuration"
+
+git config --replace-all mpe.tagscript.base powerpc
+
+banner "Setting up git hooks"
+
+for key in convert-message-id trim-cc link-tag-to-end check-fixes-tags strip-commit-comments dedup-sobs
+do
+    git config --replace-all "linux.$key" true
+done
+
+script_dir=$(realpath $(dirname $0))
+base_dir=$(dirname $script_dir)
+hook_path="$base_dir/linux/commit-msg-hook"
+
+ln -f -s $hook_path .git/hooks/commit-msg
+ln -f -s $hook_path .git/hooks/prepare-commit-msg
+ln -f -s $hook_path .git/hooks/applypatch-msg
+
+banner "Setting up git notes"
+
+# Copy notes when rebasing
+git config --replace-all notes.rewriteRef "refs/notes/*"
+# Show notes under refs/notes (all notes)
+git config --replace-all notes.displayRef "refs/notes/*"
+
+banner "All done - OK"
+exit 0
