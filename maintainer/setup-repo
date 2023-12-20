@@ -124,12 +124,16 @@ ln -f -s $hook_path .git/hooks/commit-msg
 ln -f -s $hook_path .git/hooks/prepare-commit-msg
 ln -f -s $hook_path .git/hooks/applypatch-msg
 
-banner "Setting up git notes"
+banner "Setting up misc git settings"
 
 # Copy notes when rebasing
 git config --replace-all notes.rewriteRef "refs/notes/*"
 # Show notes under refs/notes (all notes)
 git config --replace-all notes.displayRef "refs/notes/*"
+
+git config --replace-all pretty.fixes 'Fixes: %h ("%s")'
+git config --replace-all alias.ffwd "merge --ff-only"
+git config --replace-all alias.showfix "log --pretty=fixes -n 1"
 
 banner "All done - OK"
 exit 0
