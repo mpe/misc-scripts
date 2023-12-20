@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if which xclip > /dev/null 2>&1; then
+	xclip="xclip -f"
+else
+	xclip="cat"
+fi
+
+git log --abbrev=12 --pretty='Fixes: %h ("%s")' -n 1 $@ | $xclip

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if which xclip > /dev/null 2>&1; then
+	xclip="xclip -f"
+else
+	xclip="cat"
+fi
+
+fixes=$(git log --abbrev=12 --pretty='Fixes: %h ("%s")' -n 1 $@)
+stable=$(git describe --match "v[0-9]*" --contains --long $@)
+
+echo -e "$fixes\nCc: stable@vger.kernel.org # $stable" | $xclip
