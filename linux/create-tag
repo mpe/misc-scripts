@@ -103,9 +103,6 @@ def create_tag_txt(headline, base_ref):
         f.write(stable)
         f.write('\n')
 
-        if 'Merge' in log:
-            f.write(run_raw('git log -1 --pretty=%%b %s' % commit))
-
     user_name = run('git config --get user.name')
 
     other_patterns = [
