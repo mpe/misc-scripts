@@ -1,0 +1,55 @@
+#!/usr/bin/poke -L
+#
+# Patch all lwsyncs to hwsync in a given section, .text by default.
+!#
+
+vm_set_obase(16);
+set_endian(ENDIAN_LITTLE);
+load elf;
+
+if (!(argv'length in [1UL,2UL]))
+{
+    print "Usage: hwsyncify FILE [SECTION_NAME]\n";
+    exit (1);
+}
+
+var section_name = (argv'length == 2) ? argv[1] : ".text";
+
+var hwsync = 0x7c0004ac;
+var lwsync = 0x7c2004ac;
+
+var file_name = argv[0];
+try {
+  var fd = open(file_name);
+  var efile = Elf64_File @ fd : 0#B;
+
+  var sections = efile.get_sections_by_name(section_name);
+  if (sections'length == 0) {
+      printf("Error: couldn't find section '%s'\n", section_name);
+      exit(1);
+  }
+  var text = sections[0];
+
+  efile.get_section_name(text.sh_name);
+
+  var val = uint @ text.sh_offset;
+
+  for (var i = text.sh_offset; i < (text.sh_offset + text.sh_size); i = i + 4#B) {
+    var inst = uint @ i;
+    if (inst == lwsync) {
+      printf("Patching lwsync @ %v to hwsync\n", i);
+      uint @ i = hwsync;
+    }
+  }
+}
+catch (Exception e)
+{
+  if (e == E_constraint)
+    printf ("error: `%s' is not a valid ELF64 file\n", file_name);
+  else if (e == E_io)
+    printf ("error: couldn't open file `%s'\n", file_name);
+  else
+    raise e;
+
+  exit (1);
+}
