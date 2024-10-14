@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+# Kernel Config Edit - Find kernel .config and edit it.
+
+if [[ -e .config ]]; then
+	f=.config
+elif [[ -e .build/.config ]]; then
+	f=.build/.config
+elif [[ -e build~/.config ]]; then
+	f=build~/.config
+elif [[ -n "$KBUILD_OUTPUT" && -e "$KBUILD_OUTPUT/.config" ]]; then
+	f=$KBUILD_OUTPUT/.config
+else
+	echo "Couldn't find .config?"
+	exit -1
+fi
+
+$EDITOR $f
