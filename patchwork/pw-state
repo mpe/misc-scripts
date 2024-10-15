@@ -89,7 +89,7 @@ def process_commits(revision_range, state, settings):
 
     commits = run(f'git rev-list --reverse {revision_range}').splitlines()
 
-    link_patt = re.compile("Link: https?://msgid.link/(.*)")
+    link_patt = re.compile(r"Link: https?://(?:patch\.)?msgid\.link/(.*)")
 
     session = Session()
 
