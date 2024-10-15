@@ -85,7 +85,7 @@ if enabled('convert-message-id'):
         match = patt.match(line)
         if match:
             found = True
-            lines[i] = '%sLink: https://msgid.link/%s\n' % match.groups()
+            lines[i] = '%sLink: https://patch.msgid.link/%s\n' % match.groups()
         i += 1
 
     if found:
@@ -99,7 +99,7 @@ if enabled('convert-message-id'):
 
 if enabled('link-tag-to-end'):
     import re
-    patt = re.compile(r'^\s*Link: https://msgid\.link.*$')
+    patt = re.compile(r'^\s*Link: https://(patch\.)?msgid\.link.*$')
 
     last_non_comment = 0
     links = []
