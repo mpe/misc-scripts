@@ -1,0 +1,37 @@
+#!/bin/bash
+
+for b in $(git branch --list "ppc-*" | tr -d "*")
+do
+    	upstream=origin/linux-${b#*-}.y
+
+	ours=$(git rev-parse $b)
+	origin=$(git rev-parse $upstream)
+
+	if [[ "$ours" == "$origin" ]]; then
+	    echo "Branch $b up to date"
+	    continue
+	fi
+
+	merge_base=$(git merge-base $b $upstream)
+	if [[ "$merge_base" == "$origin" ]]; then
+	    echo "Branch $b already rebased onto $upstream"
+	    continue
+	fi
+
+	git checkout $b
+	if [[ $? -ne 0 ]]; then
+		echo "FAIL: Couldn't check out $b"
+		exit 1
+	fi
+
+	git rebase
+	if [[ $? -ne 0 ]]; then
+		echo "FAIL: Couldn't rebase $b"
+		exit 1
+	fi
+
+	echo "Updated $b OK"
+done
+
+echo "ALL OK"
+exit 0

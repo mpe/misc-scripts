@@ -1,0 +1,29 @@
+#!/bin/bash
+
+for b in $(git branch --sort=version:refname --list "linux-*" | tr -d "*")
+do
+    	ours=$(git rev-parse $b)
+	origin=$(git rev-parse origin/$b)
+
+	if [[ "$ours" == "$origin" ]]; then
+	    echo "Branch $b up to date"
+	    continue
+	fi
+
+	git checkout $b
+	if [[ $? -ne 0 ]]; then
+		echo "FAIL: Couldn't check out $b"
+		exit 1
+	fi
+
+	git pull --ff-only
+	if [[ $? -ne 0 ]]; then
+		echo "FAIL: Couldn't fast forward $b"
+		exit 1
+	fi
+
+	echo "Updated $b OK"
+done
+
+echo "ALL OK"
+exit 0
