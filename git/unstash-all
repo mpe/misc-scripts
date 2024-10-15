@@ -1,0 +1,35 @@
+#!/bin/bash
+
+if [[ -z "$1" ]]; then
+	echo "Usage: $0 <starting number>" >&2
+	exit 1
+fi
+
+set -e
+set -o pipefail
+
+i=$1
+
+while true
+do
+	rc=0
+	git stash show > /dev/null || rc=1
+	if [[ $rc -ne 0 ]]; then
+		break
+	fi
+
+	set -e
+	desc=$(git stash list -1)
+	git stash branch stash/$i
+
+	if [[ -n "$(git ls-files -o --exclude-standard)" ]]; then
+		echo "Error: tree is not clean!" >&2
+		break
+	fi
+
+	git commit -a -m "$desc"
+
+	echo "Unstashed to stash/$i $desc"
+
+	i=$((i+1))
+done
