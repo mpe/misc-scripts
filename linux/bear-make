@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -x
+cp compile_commands.json compile_commands.json.bak
+bear -- make ARCH=powerpc CC=clang CROSS_COMPILE=powerpc64le-linux-gnu- -j $(nproc) ppc64le_defconfig guest.config vmlinux modules
