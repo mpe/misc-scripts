@@ -1,0 +1,40 @@
+#!/usr/bin/python3
+
+import sys, os, os.path
+
+gitdir = '.git'
+if os.path.isfile('.git'):
+    gitdir = open('.git').read().split()[1]
+
+while True:
+    status = os.system('patch -p1 --dry-run < %s/rebase-apply/patch' % gitdir)
+
+    if status == 0:
+        break
+    else:
+        print('FAILED applying patch')
+
+        print('Action to take? (e)dit/(q)uit? ')
+        response = sys.stdin.readline().strip()
+        if response == 'e':
+            print('Opening an editor ...')
+            os.system('zellij run -c -d right -- hx %s/rebase-apply/patch' % gitdir)
+
+        print('Try again? (y)es/(n)o ')
+        response = sys.stdin.readline().strip()
+        if response == 'y':
+            continue
+
+        print('Quitting')
+        sys.exit(1)
+
+
+print('Patch applied')
+print('========================================')
+os.system('patch -p1 < %s/rebase-apply/patch' % gitdir)
+os.system('git ls-files -m | xargs git add')
+if os.system(r'git ls-files -o --exclude-standard | grep "\.[Schs]\$"') == 0:
+    print('Untracked source files present, stopping')
+    print('Add or remove files and then run git am --resolved')
+else:
+    os.system('git am --resolved')
