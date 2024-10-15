@@ -86,7 +86,7 @@ git branch --set-upstream-to=next next-test
 git branch --set-upstream-to=korg/next next
 
 banner "Setting up b4"
-git config --replace-all b4.linkmask "https://msgid.link/%s"
+git config --replace-all b4.linkmask "https://patch.msgid.link/%s"
 git config --replace-all b4.thanks-commit-url-mask "https://git.kernel.org/powerpc/c/%.40s"
 git config --replace-all b4.trailer-order "fixes*,cc*,reported*,suggested*,original*,co-*,signed-off*,tested*,reviewed*,acked*,link*,*"
 git config --replace-all b4.thanks-from-email "patch-notifications@ellerman.id.au"
