@@ -60,7 +60,7 @@ fi
 
 banner "Setting up branches"
 
-for branch in next next-base next-test fixes fixes-base fixes-test
+for branch in next next-base next-test fixes fixes-base fixes-test merge topic/ppc-kvm
 do
     if ! git rev-parse --verify $branch > /dev/null 2>&1; then
         echo "Creating $branch"
@@ -73,17 +73,17 @@ do
     fi
 done
 
-# fixes-test's upstream is fixes
-git branch --set-upstream-to=fixes fixes-test
+# fixes-test and next-test's upstream are fixes/next respectively
+for branch in next fixes
+do
+	git branch --set-upstream-to=$branch ${branch}-test
+done
 
-# fixes' upstream is korg/fixes
-git branch --set-upstream-to=korg/fixes fixes
-
-# next-test's upstream is next
-git branch --set-upstream-to=next next-test
-
-# next's upstream is korg/next
-git branch --set-upstream-to=korg/next next
+# Other branches' upstream is korg
+for branch in next fixes merge topic/ppc-kvm
+do
+	git branch --set-upstream-to=korg/$branch $branch
+done
 
 banner "Setting up b4"
 git config --replace-all b4.linkmask "https://patch.msgid.link/%s"
