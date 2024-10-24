@@ -131,6 +131,10 @@ git config --replace-all notes.rewriteRef "refs/notes/*"
 # Show notes under refs/notes (all notes)
 git config --replace-all notes.displayRef "refs/notes/*"
 
+# GPG sign pushes if the server supports it (kernel.org does)
+# https://korg.docs.kernel.org/gitolite/transparency-log.html
+git config --replace-all push.gpgSign "if-asked"
+
 git config --replace-all pretty.fixes 'Fixes: %h ("%s")'
 git config --replace-all alias.ffwd "merge --ff-only"
 git config --replace-all alias.showfix "log --pretty=fixes -n 1"
