@@ -1,0 +1,91 @@
+#!/usr/bin/python3
+
+import os
+import sys
+from random import randint
+from copy import copy
+from subprocess import Popen
+
+
+def check_thanks(fname):
+    body = open(fname).read()
+    if 'no commit info' in body:
+        print('Error: found unedited thanks', fname)
+        return False
+
+    if 'vnet.ibm.com' in body:
+        print('Error: found @linux.vnet.ibm.com address (should be @linux.ibm.com) in', fname)
+        return False
+
+    if 'lists.linux.ibm.com' in body:
+        print('Error: found IBM internal lists.linux.ibm.com address in', fname)
+        return False
+
+    if 'linuxppc-dev@ozlabs.org' in body:
+        print('Error: found linuxppc-dev@ozlabs.org (should be linuxppc-dev@lists.ozlabs.org) in', fname)
+        return False
+
+    return True
+
+
+def do_send(fname):
+    f = open(fname)
+
+    p = Popen('sendmail.sh'), stdin=f)
+    (out, err) = p.communicate()
+
+    if p.returncode != 0:
+        print('Error: sending failed!')
+        print(err)
+        return False
+
+    return True
+
+
+def main(args):
+    if len(args) != 0:
+        print("Usage: %s" % os.path.basename(sys.argv[0]))
+        return 1
+
+    files = []
+    for ent in os.listdir('.'):
+        if os.path.isfile(ent) and ent.endswith('.thanks'):
+            files.append(ent)
+
+    if len(files) == 0:
+        print("Error: no thanks found! Wrong directory?")
+        return 1
+
+    files.sort()
+
+    tmp = copy(files)
+    for f in tmp:
+        if not check_thanks(f):
+            return 1
+
+    print('%d thanks found' % len(files))
+    for f in files:
+        print(f)
+
+    token = str(randint(10000, 99999))
+    print("To confirm sending, enter the token [%s] or 'q' to quit: " % token, end='')
+    sys.stdout.flush()
+
+    response = sys.stdin.readline()
+    if response.strip() != token:
+        print('Sending not confirmed, exiting')
+        return 1
+
+    print()
+    for f in files:
+        print('Sending', f)
+
+        if not do_send(f):
+            return 1
+
+        print('OK')
+
+    return 0
+
+
+sys.exit(main(sys.argv[1:]))
