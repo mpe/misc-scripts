@@ -4,7 +4,7 @@ import os
 import sys
 from random import randint
 from copy import copy
-from subprocess import Popen
+from subprocess import run
 
 
 def check_thanks(fname):
@@ -29,11 +29,7 @@ def check_thanks(fname):
 
 
 def do_send(fname):
-    f = open(fname)
-
-    p = Popen('sendmail.sh'), stdin=f)
-    (out, err) = p.communicate()
-
+    p = run(['sendmail.sh', fname])
     if p.returncode != 0:
         print('Error: sending failed!')
         print(err)
