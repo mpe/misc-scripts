@@ -53,7 +53,9 @@ if ! git remote | grep -w gh-ci > /dev/null; then
     git remote add gh-ci https://github.com/linuxppc/linux-ci.git
     git remote set-url --push gh-ci git@github.com:linuxppc/linux-ci.git
     git fetch gh-ci
+    git config --add remote.gh-ci.push "refs/heads/master:refs/heads/master"
     git config --add remote.gh-ci.push "refs/heads/merge:refs/heads/merge"
+    git config --add remote.gh-ci.push "refs/heads/merge-test:refs/heads/merge-test"
     git config --add remote.gh-ci.push "refs/heads/next-test:refs/heads/next-test"
     git config --add remote.gh-ci.push "refs/heads/fixes-test:refs/heads/fixes-test"
     git config --add remote.gh-ci.push "refs/tags/powerpc*"
