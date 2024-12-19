@@ -1,0 +1,52 @@
+#!/usr/bin/python3
+
+import sys
+import re
+from subprocess import check_output
+from collections import Counter
+
+if len(sys.argv) != 2:
+    print('Usage: %s <path>' % sys.argv[0], file=sys.stderr)
+    sys.exit(1)
+
+fname = sys.argv[1]
+
+cmd = ['git', 'log', '--format=%s', '-n', '100', fname]
+output = check_output(cmd).decode('utf-8')
+
+ignore = ['License', 'Merge']
+
+# Ordered list of patterns
+patterns = [
+    # Uncommon "baz: (bar) Fix the foo"
+    re.compile(r'^([\w\-_]+: \([\w\-_]+\))+'),
+    # Somewhat common "foo bar baz: Fix the foo"
+    re.compile(r'^([\w\-_]+:? )+: '),
+    # Uncommon style "foo/bar: baz: Fix the foo"
+    re.compile(r'^([\w\-_/]+: [\w\-_]+:)'),
+    # Common style "foo/bar/baz: Fix the foo"
+    re.compile(r'^([\w\-_/]+: )+'),
+]
+
+words = []
+for line in output.splitlines():
+    prefix = line.split()[0]
+    for patt in patterns:
+        match = patt.search(line)
+        if match:
+            prefix = match.group(0)
+            #print(f"Matched '{prefix}' against {patt}")
+            break
+
+    if prefix in ignore:
+        continue
+
+    words.append(prefix)
+
+# Warn if we didn't find many examples
+if len(words) < 5:
+    print("Warning: only found %d previous commits to guess from for" % len(words),
+          fname, file=sys.stderr)
+
+counts = Counter(words)
+print(counts.most_common(1)[0][0])
