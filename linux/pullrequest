@@ -49,7 +49,15 @@ def get_addrs(base, head):
         cmd = 'git log --pretty=format:%s %s..%s' % (fmt, base, head)
         return [b.decode('utf-8') for b in check_output(cmd.split()).splitlines()]
 
-    addrs = set(['linuxppc-dev@lists.ozlabs.org', 'linux-kernel@vger.kernel.org'])
+    addrs = set([
+        'linuxppc-dev@lists.ozlabs.org',
+        'linux-kernel@vger.kernel.org',
+        'maddy@linux.ibm.com',
+        'mpe@ellerman.id.au',
+        'npiggin@gmail.com',
+        'christophe.leroy@csgroup.eu',
+        'naveen@kernel.org',
+    ])
 
     # Authors
     addrs.update(set(get_emails(r'%ae')))
