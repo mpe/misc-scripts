@@ -64,9 +64,6 @@ def get_addrs(base, head):
         if m:
             addrs.add(m.group(1))
 
-    # Filter out ellerman addresses
-    addrs = filter(lambda a: 'ellerman' not in a, addrs)
-
     # Sort
     addrs = list(addrs)
     addrs.sort()
